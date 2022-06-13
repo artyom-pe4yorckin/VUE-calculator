@@ -1,0 +1,372 @@
+@font-face {
+  font-family:"comfortaa-bold";
+  src: url('~@/assets/fonts/Comfortaa-Bold.woff2') format("woff2");
+}
+@font-face {
+  font-family:'comfortaa';
+  src: url('~@/assets/fonts/Comfortaa-Regular.woff2') format("woff2");
+}
+@font-face {
+  font-family:'comfortaa-light';
+  src: url('~@/assets/fonts/Comfortaa-Light.woff2') format("woff2");
+}
+:root {
+  --green: #4B996F;
+  --brown: #BA7449;
+  --red: #D96357;
+  --gray: #ccc;
+  --black: #333;
+  --border-radius: 5px;
+  --icon-width: 1.5rem;
+  --color: var(--black);
+  --color2: var(--gray);
+  --gap: .5em;
+}
+html {
+  font-size: 14px;
+  font-family: 'comfortaa-bold', sans-serif;
+  color: var(--black);
+}
+
+body {
+  padding: 2rem;
+  margin: 0;
+}
+
+* {
+  box-sizing: border-box;
+}
+
+input, button, textarea {
+  font-size: 1rem;
+  border-radius: var(--border-radius);
+  font-family: inherit;
+}
+
+button, input[type="submit"] {
+  border: none;
+  padding: .5em 1em;
+  color: white;
+  background: var(--green);
+}
+
+button, input[type="submit"], details {
+  cursor: pointer;
+}
+
+input, details {
+  border: 2px solid var(--green);
+  padding: var(--gap);
+}
+
+details summary {
+  list-style: none;
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+}
+details summary::-webkit-details-marker {
+  display:none;
+}
+
+/*Блок с калькулятором*/
+.calculator {
+  max-width: 900px;
+  margin: 0 auto;
+  display: grid;
+  gap: calc(var(--gap)*2);
+  justify-content: center;
+  grid-template-columns: repeat(auto-fit, minmax(290px, 2fr));
+}
+
+.expression{
+  display: grid;
+  font-size: 2rem;
+}
+.expression_txt, .expression_highlighting{
+  grid-area: 1/1;
+  font-family: inherit;
+  line-height: 1;
+  white-space: pre;
+}
+.expression_txt{
+  width: calc(100% - var(--gap) * 2);
+  overflow: hidden;
+  resize: none;
+  outline: none;
+  padding: 0;
+  margin: var(--gap);
+  border: 2px solid transparent;
+  z-index: 1;
+  background: transparent;
+  caret-color: black;
+  color: transparent;
+  font-size: inherit;
+}
+.expression_highlighting{
+  margin: 0;
+  display: block;
+  z-index: 2;
+  border: 2px solid var(--green);
+  padding: var(--gap);
+  pointer-events: none;
+  background: transparent;
+  border-radius: var(--border-radius);
+  overflow-wrap: break-word;
+  white-space: pre-wrap;
+  font-family: inherit;
+}
+.expression_highlighting.extraPadding{
+  padding: 10px 10px calc(10px + 1rem);
+}
+.expression_highlighting>*{
+  height: 1em;
+}
+.wrong{
+  color: crimson;
+}
+.thisBracket{
+  font-weight: bold;
+}
+.bracket.unclosed{
+  color: crimson !important;
+}
+
+.error-list {
+  padding: 1rem;
+  border: 2px solid var(--red);
+  margin: 0;
+  list-style: none;
+  counter-reset: errors;
+}
+.error-item{
+  margin: 1em 0;
+  display: flex;
+  gap: 10px;
+}
+.error-item:nth-child(1){
+  margin-top: 0;
+}
+.error-item:last-child{
+  margin-bottom: 0;
+}
+.error-item:before{
+  counter-increment: errors; /* Увеличиваем значение счетчика */
+  content: counter(errors)'.';
+  font-size: 1.5em;
+}
+.error-txt>*{
+  margin: 0;
+}
+.error-txt ul{
+  padding: 0 0 0 1em;
+  list-style: disc;
+}
+.error-txt ul li::marker{
+  color: #ffaea6;
+}
+
+.input, .output, .equation-inputs {
+  display: flex;
+  flex-direction: column;
+}
+
+.input {
+  gap: calc(var(--gap)*2);
+}
+
+.equation-inputs, .output {
+  gap: var(--gap);
+}
+
+.buttons {
+  display: grid;
+  grid-template-columns: auto 1fr;
+  gap: calc(var(--gap)*2);
+  align-items: flex-start;
+  --color: white;
+}
+
+.constructor {
+  border: 2px solid var(--green);
+  --color: var(--black);
+  border-radius: var(--border-radius);
+}
+
+.constructor .dropdown-list-title {
+  padding: 10px;
+  min-height: 50px;
+}
+
+.constructor.open .dropdown-list-title, .constructor .dropdown-list-title {
+  padding: 10px;
+}
+
+
+/*Табы и констркутор*/
+.tab_list [data-tab] {
+  background: var(--green);
+  display: none;
+  gap: 10px;
+  padding: 1rem;
+}
+
+[data-tab].active {
+  display: flex;
+}
+
+.tab_title-list {
+  display: flex;
+}
+
+.constructor_tab-title {
+  padding: var(--gap);
+  cursor: pointer;
+  border-top-left-radius: var(--border-radius);
+  border-top-right-radius: var(--border-radius);
+  transition: .3s padding;
+  font-size: var(--icon-width);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+.constructor_tab-title:nth-child(1){
+  border-top-left-radius: 0;
+}
+
+.constructor_tab-title.active {
+  background: var(--green);
+  --color: white;
+  color: white;
+  padding: var(--gap) calc(var(--gap)*1.5);
+}
+
+.operation {
+  width: 30px;
+  height: 30px;
+  background: white;
+  padding: 5px;
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  cursor: grab;
+  border-radius: var(--border-radius);
+}
+
+.operation > * {
+  max-width: 100%;
+  max-height: 100%;
+  object-fit: contain;
+}
+
+.operation-icon {
+  object-fit: contain;
+  width: 100%;
+  height: 100%;
+}
+
+.constructor_body {
+  min-height: 100px;
+}
+
+/*Блок с кнопками*/
+.numbers {
+  display: inline-grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: var(--gap);
+  grid-template-areas:
+        'one two tree'
+        'four five six'
+        'seven eight nine'
+        'zero zero zero'
+        'dot brackets backspace';
+}
+
+.number-btn[data-value='0'] {
+  grid-area: zero;
+  width: auto;
+}
+
+.number-btn[data-value='()'] {
+  grid-area: brackets;
+}
+
+.operators {
+  display: flex;
+  flex-direction: column;
+}
+
+.number-btn, .operator-btn {
+  width: 50px;
+  height: 50px;
+  padding: var(--gap);
+  font-size: var(--icon-width);
+  line-height: 1em;
+}
+
+.operator-btn {
+  display: flex;
+  justify-content: center;
+  align-items: center;
+}
+
+.operator-btn[value="dot"] {
+  grid-area: dot;
+}
+
+.operator-btn > * {
+  max-width: 100%;
+  max-height: 100%;
+}
+
+.operator-btn[value="backspace"] > * {
+  width: 30px;
+  height: 30px;
+  grid-area: backspace;
+}
+
+.operator-wrapper {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+
+.operator-group-wrapper {
+  display: flex;
+  flex-direction: column;
+  gap: var(--gap);
+}
+
+.operator-group {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--gap);
+}
+
+/*Кнопка = и ответ*/
+.calculate {
+  color: white;
+  background: var(--brown);
+  padding: 20px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  --color: white;
+}
+.calculate[disabled]{
+  cursor: auto;
+  background: var(--gray);
+}
+
+.calculate > * {
+  width: 15px;
+}
+
+.answer {
+  border: 2px solid var(--brown);
+  padding: var(--gap);
+  font-size: 2rem;
+  margin: 0;
+  text-align: right;
+  border-radius: var(--border-radius);
+}
