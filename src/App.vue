@@ -1,5 +1,4 @@
 <template>
-  <p>Выражения типа 1*(-2) не вычисляются</p>
   <div class="calculator">
     <div class="input">
       <div class="equation-inputs">
@@ -100,11 +99,11 @@
     </div>
 
     <div class="output">
-      <button class="calculate" v-html="icons.equals"></button>
+      <button class="calculate" v-html="icons.equals" v-bind:disabled="expressionIsCorrect ? false : ''"></button>
       <p class="answer">{{ answer }}</p>
-      <ol class="error-list">
-        <li class="error-item">
-          <div class="error-txt"></div>
+      <ol class="error-list" v-show="!expressionIsCorrect">
+        <li class="error-item" v-for="msg of errorArr">
+          <div class="error-txt" v-html="msg"></div>
         </li>
       </ol>
     </div>
@@ -135,7 +134,54 @@ export default {
       expressionInput: '',
       highlightingHTML: '',
       carriagePos: 0,
-      lastStrIsEmpty: false
+      lastStrIsEmpty: false,
+      operators: ['+', '-', '*', '/', '^', '!'],
+      baseOperators: ['+', '-'],
+      derivedOperators: ['*', '/', '^', '!'],
+      constants: ["pi", "e"],
+      trigonometry: ['sin', 'cos', 'tg', 'ctg'],
+      trigonometryAndConstants: [],
+      expressionIsCorrect: true,
+      errorArr: [],
+      errorMsg: {
+        'openBracket' : {
+          'prev': `<p>Перед '(' может быть только оператор или '('</p>`,
+          'next': `<p>После '(' может быть только любая скобка, число или '-'</p>`,
+          'root': `<p>В root должны передаваться числа (сперва подкоренное выражение, затем степень корня)</p>`,
+        },
+        'brackets': 'В выражении содержатся незакрытые скобки',
+        'closeBracket' : {
+          'prev': `<p>Перед ')' может быть только число, константа или любая скобка</p>`,
+          'next': `<p>После ')' может быть только оператор или ')'</p>`
+        },
+        'operator' : {
+          'prev': `<p>Перед оператором (кроме '-') может быть только число или '!'</p>`,
+          'next': `<p>После оператора (кроме '!') может быть только число или '-', а после '!' только оператор (кроме !), ',' или ')'</p>`,
+          'middle': `<p>2 и более оператора не могут идти подряд (кроме случая когда их 2 и 1й не '-' или '!')</p>`
+        },
+        'exponentiation':{
+          'prev': 'возводить в степень можно только числа, константы и содержимое скобок',
+          'next': 'степень должна быть обернута в скобки или начинаться с \'-\' или числа'
+        },
+        'num' : {
+          'prev': `<p>Перед числом может идти только другое число, оператор (кроме !) или '('</p>`,
+          'next': `<p>После числа может идти только другое число, оператор или ')'</p>`
+        },
+        'root' : {
+          'rootDoesntExist' : `<p>',' Может находиться только в операторе root</p>`,
+          'wrongRootContent' : `<p>В операторе root должны быть 2 выражения или числа, разделённые ','</p>`
+        },
+        'separator': {
+          'tooMany': '2 и более разделителя не могут идти подряд',
+          'dot': `Десятичный разделитель должен находиться между 2 цифрами`,
+          'number': 'В числе может быть только 1 десятичный разделитель'
+        },
+        'edges': {
+          'start': `Выражение не может начинаться с операторов (кроме '-') и ')'`,
+          'end': `Выражение не может заканчиваться на оператор (кроме '!') и '('`
+        },
+        'words': `<p>В выражении есть неподдерживаемые функции или константы: _placeholder_</p>`
+      },
     };
   },
   name: "App",
@@ -212,25 +258,281 @@ export default {
       this.expression = txt.join('')
     },
 
-    //подсветка ошибок, пока просто обрачиваем каждый символ в span
+    //подсветка ошибок
     doHighlighting(){
       let expression = this.expression;
       let html = [];
-      for(let char of expression){
-        html.push(`<span>${char}</span>`)
+      for(let i=0; i<expression.length; i++){
+        let char = expression[i];
+        let cssClass = ''
+        if(char=="(" || char==")" ) cssClass = 'bracket'
+        else if(this.operators.includes(char)) cssClass = 'operator'
+        else if(/\d/.test(char)) {
+          let remainingStr = expression.substring(i)
+          let num = remainingStr.match(/\d+/)
+          i += num[0].length-1
+          char = num[0]
+          cssClass = 'number'
+        }
+        //пробельные символы, вкючая переносы строк
+        else if(/\n/.test(char)) cssClass = 'lineBreak'
+        else if(/\t/.test(char)) cssClass = 'tab'
+        else if(/\s/.test(char)) cssClass = 'whitespace'
+        else if(/[.,]/.test(char)) cssClass = 'dot'
+        //проверяем на константы и тригонометрию
+        else if(/[a-zA-Z]/.test(char)){
+          //получаем всю оставщуюся строку и ищем в ней константы или тригонометрию
+          let remainingStr = expression.substring(i)
+          let somethigFoud = false;
+          for(let str of this.trigonometryAndConstants){
+            if(remainingStr.indexOf(str)===0){
+              cssClass = this.isTrigonometry(str) ? 'trigonometry' : 'constant';
+              i += str.length-1;
+              somethigFoud = true;
+              char = str
+              break;
+            }
+          }
+          if(remainingStr.indexOf('root')===0){
+            cssClass = 'operator'
+            i += 3;
+            somethigFoud = true;
+            char = 'root'
+          }
+          if(!somethigFoud) cssClass = 'wrong'
+        }else{
+          cssClass = 'wrong'
+        }
+        html.push(`<span class="${cssClass}">${char}</span>`)
       }
       this.highlightingHTML = html.join('')
-    }
+    },
+
+    isOperator(char) {
+      return this.operators.includes(char)
+    },
+
+    //проверяет заканчивается ли строка на тригонометрическую подстроку
+    isTrigonometry(str){
+      if(!str || str.length==0) return false
+      for(let t of this.trigonometry){
+        let reg = new RegExp(`${t}$`);
+        if(str.match(reg)){
+          return true
+        }
+      }
+      return false
+    },
+
+    isRoot(str){
+      if(!str || str.length==0) return false
+      if(str.match(/root$/)){
+        return true
+      }
+      return false
+    },
+
+    isConstant(str, direction){
+      if(!str || str.length==0) return false
+      for(let c of this.constants){
+        let reg
+        if(direction=='prev'){
+          reg = new RegExp(`${c}$`);
+        }else if(direction=='next'){
+          reg = new RegExp(`^${c}`);
+        }
+        if(str.match(reg)){
+          return true
+        }
+      }
+      return false
+    },
+
+    validatePartialExp(str) {
+      str = str.replace(/\s/g, '')
+      let result = {valid: true, errorArr: []}
+      if(str.length===0) return result
+
+      function updateErrorArr(msg){
+        result.valid = false
+        if(!result.errorArr.includes(msg)) result.errorArr.push(msg)
+      }
+
+      if ((this.isOperator(str[0]) && str[0]!='-') || str[0] == ")") {
+        updateErrorArr(this.errorMsg.edges.start)
+      }
+      //проверка синтаксиса корня
+      if(!/root/.test(str) && /,/.test(str)){
+        updateErrorArr(this.errorMsg.root.rootDoesntExist)
+      }else if(/root/.test(str) && !/root\(.+? ?, ?.+?\)/.test(str)){
+        updateErrorArr(this.errorMsg.root.wrongRootContent)
+      }
+      //в регулярках ищется только то чего быть не должно
+      //Проверка операторов
+      if(
+          /[^\w!\)][*\/^+!]/.test(str) ||
+          /\.-/.test(str)
+      ){
+        updateErrorArr(this.errorMsg.operator.prev)
+      }
+      if(
+          /[-+*\/^][^\w\-\(\)]/.test(str) ||
+          /![.\d\(!]/.test(str) ||
+          /![\(\.\d]/.test(str)
+      ){
+        updateErrorArr(this.errorMsg.operator.next)
+      }
+      if(
+          /--/.test(str) ||
+          /[*\/^+-][*\/^+!]/.test(str)
+      ){
+        updateErrorArr(this.errorMsg.operator.middle)
+      }
+      //синтаксис возведения в степень
+      if(
+          /[^\dA-Za-z\)]\^/.test(str)
+      ){
+        updateErrorArr(this.errorMsg.exponentiation.prev)
+      }
+      if(
+          /\^[^-\d\(A-Za-z]/.test(str)
+      ){
+        updateErrorArr(this.errorMsg.exponentiation.next)
+      }
+      //Проверка чисел
+      if(/\)\d/.test(str)){
+        updateErrorArr(this.errorMsg.num.prev)
+      }
+      if( /\d\(/.test(str) ){
+        updateErrorArr(this.errorMsg.num.next)
+      }
+      //Разделители
+      if(/\.\.+/.test(str) || /,,+/.test(str)){
+        updateErrorArr(this.errorMsg.separator.tooMany)
+      }else if( /([^\d]\.|\.[^\d])/.test(str) ||
+          /(^\.|\.$)/.test(str)
+      ){
+        updateErrorArr(this.errorMsg.separator.dot)
+      }
+      if( /\d+\.\d+\./.test(str) ){
+        updateErrorArr(this.errorMsg.separator.number)
+      }
+      //закрыты ли скобки
+      if(!this.bracketsValidator(str)){
+        updateErrorArr(this.errorMsg.brackets)
+      }
+      //прочие ошибки с (
+      if(/[\d!\)]\(/.test(str)){
+        updateErrorArr(this.errorMsg.openBracket.prev)
+      }
+      if(/\([+*\/!^\)]/.test(str)){
+        updateErrorArr(this.errorMsg.openBracket.next)
+      }
+      //прочие ошибки с )
+      if(/[^\d!ie\)]\)/.test(str)){
+        updateErrorArr(this.errorMsg.closeBracket.prev)
+      }
+      if(/\)[\d\(]/.test(str)){
+        updateErrorArr(this.errorMsg.closeBracket.next)
+      }
+      //Концы
+      if(/^[\)+*\/!^]/.test(str)){
+        updateErrorArr(this.errorMsg.edges.start)
+      }
+      if(/[-+*\/^\(]$/.test(str)){
+        updateErrorArr(this.errorMsg.edges.end)
+      }
+      //буквы
+      let words = str.match(/[a-zA-Z]+/g)
+      let unexpectedWords = []
+      if(words){
+        for(let w of words){
+          if(!this.trigonometry.includes(w) && !this.constants.includes(w) && w!='root'){
+            unexpectedWords.push(w)
+          }
+        }
+      }
+      if(unexpectedWords.length>0){
+        unexpectedWords = unexpectedWords.map(v=>`<li>${v}</li>`).join('')
+        let msg = this.errorMsg.words.replace('_placeholder_', `<ul>${unexpectedWords}</ul>`)
+        updateErrorArr(msg)
+      }
+      let length = str.length
+      if (length < 3) {
+        if (!this.isConstant(str[0]) && !this.isTrigonometry(str[0]) && !/[\d\(-]/.test(str[0])) {
+          updateErrorArr(this.errorMsg.edges.start)
+        }
+        if(/[+\-*\/^]{2,}/.test(str)){
+          updateErrorArr(this.errorMsg.operator.middle)
+        }
+        this.expressionIsCorrect = result.valid
+      }
+      return result
+    },
+
+    bracketsValidator(str){
+      str = str.replace(/[^()]/g, '')
+      str = str.split('')
+      if(str[0]==")" || str[str.length-1]=='('){
+        return false
+      }
+      if(str.length===0) return true
+      let validateArr = []
+      //после каждой ( должна идти )
+      /*
+      * Если ( то добавляем её в массив как незакрытую
+      * Если ) то ищем ближайшую (
+      *   Если ( не найдена то добавляем ) со статусом незакрытой
+      *   Иначе добавляем ) со статусом закрытой и меняем у найденой ) статус на закрытую
+      * */
+      /* [['(', true], [...]] */
+      for(let b=0; b<str.length; b++){
+        let bracket = str[b]
+        if(bracket=="("){
+          validateArr.push([bracket, false])
+        }
+        if(bracket==")"){
+          //если последняя ( уже закрыта то ищем ( раньше
+          if(str[b-1]=='('){
+            validateArr.push([bracket, true])
+            validateArr[b-1][1] = true
+          }else{
+            for(let i=validateArr.length-1; i>=0; i--){
+              if(validateArr[i][0]=='(' && !validateArr[i][1]){
+                validateArr.push([bracket, true])
+                validateArr[i][1] = true
+                break;
+              }
+              //Если не нашли одинокой ( то добавляем ) как не закрытую
+              if(i==0 && (validateArr[i][0]!='(' || validateArr[i][1])){
+                validateArr.push([bracket, false])
+              }
+            }
+          }
+        }
+      }
+      if(validateArr.flat().includes(false)){
+        return false
+      }
+      return true
+    },
   },
   //Работает только с простыми занчениями типа строк, чтобы отслеживать массивы/объекты надо указать в них конкретный индекс
   watch: {
     expression(newVal, oldVal, e){
+      let validator = this.validatePartialExp(newVal)
+      this.expressionIsCorrect = validator.valid
+      //выводим список ошибок
+      if (!validator.valid){
+        this.errorArr = validator.errorArr
+      }
       this.doHighlighting()
     }
   },
   //Выполняется когда всё смонтировано
   mounted: function() {
     this.expressionInput = document.querySelector('.expression_txt')
+    this.trigonometryAndConstants = [...this.constants, ...this.trigonometry]
     //получаем код svg иконок
     for (let i in this.icons) {
       try{
